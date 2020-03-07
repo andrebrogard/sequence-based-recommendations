@@ -25,6 +25,18 @@ If you use this code in your research, please cite us:
 } 
 ````
 
+## Fork differences
+
+Added --r_act_c, --r_act_h parameters, sets activation func for cell state and hidden state respectively.
+
+They are only implemented on sparse LSTM atm.
+
+Possible values: tanh, sigmoid, elu, selu
+
+````
+python train.py ... -m RNN --r_t LSTM ... --r_act_c selu --r_act_h sigmoid ...
+````
+
 ## Installation
 The library has many dependencies: numpy/scipy, theano and lasagne for the neural networks, Gensim for word2vec and pandas for the data manipulation.
 
