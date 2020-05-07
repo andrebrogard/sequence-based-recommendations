@@ -12,27 +12,33 @@ def recurrent_layers_command_parser(parser):
 	parser.add_argument('--r_l', help="Layers' size, (eg: 100-50-50)", default="50", type=str)
 	parser.add_argument('--r_bi', help='Bidirectional layers.', action='store_true')
 	parser.add_argument('--r_emb', help='Add an embedding layer before the RNN. Takes the size of the embedding as parameter, a size<1 means no embedding layer.', type=int, default=0)
-	parser.add_argument('--r_act_h', dest='rec_activation_hidden', choices=['tanh', 'sigmoid', 'selu', 'elu'], help='Activation function for hidden output, only for sparse LSTM', default='tanh')
-	parser.add_argument('--r_act_c', dest='rec_activation_cell', choices=['tanh', 'sigmoid', 'selu', 'elu'], help='Activation function for cell output, only for sparse LSTM', default='tanh')
-	
+	parser.add_argument('--r_act_h', dest='rec_activation_hidden', choices=['tanh', 'sigmoid', 'selu', 'elu', 'softplus', 'rectify'], help='Activation function for hidden output, only for sparse LSTM', default='tanh')
+	parser.add_argument('--r_act_c', dest='rec_activation_cell', choices=['tanh', 'sigmoid', 'selu', 'elu', 'softplus', 'rectify'], help='Activation function for cell output, only for sparse LSTM', default='tanh')
+	parser.add_argument('--r_act_o', dest='rec_activation_output', choices=['tanh', 'sigmoid', 'selu', 'elu', 'softplus', 'rectify'], help='Activation function for hidden output, only for sparse LSTM', default='sigmoid')
+	parser.add_argument('--r_act_i', dest='rec_activation_input', choices=['tanh', 'sigmoid', 'selu', 'elu', 'softplus', 'rectify'], help='Activation function for cell output, only for sparse LSTM', default='sigmoid')
+	parser.add_argument('--r_act_f', dest='rec_activation_forget', choices=['tanh', 'sigmoid', 'selu', 'elu', 'softplus', 'rectify'], help='Activation function for hidden output, only for sparse LSTM', default='sigmoid')
 def get_recurrent_layers(args):
-	return RecurrentLayers(layer_type=args.recurrent_layer_type, layers=map(int, args.r_l.split('-')), bidirectional=args.r_bi, embedding_size=args.r_emb, activation_hidden=args.rec_activation_hidden, activation_cell=args.rec_activation_cell)
-	
+	return RecurrentLayers(layer_type=args.recurrent_layer_type, layers=map(int, args.r_l.split('-')), bidirectional=args.r_bi, embedding_size=args.r_emb,
+	 activation_hidden=args.rec_activation_hidden, activation_cell=args.rec_activation_cell, activation_input=args.rec_activation_input, activation_forget=args.rec_activation_forget, activation_output=args.rec_activation_output)
+
 
 class RecurrentLayers(object):
-	def __init__(self, layer_type="LSTM", layers=[32], bidirectional=False, embedding_size=0, grad_clipping=100, activation_hidden="tanh", activation_cell="tanh"):
+	def __init__(self, layer_type="LSTM", layers=[32], bidirectional=False, embedding_size=0, grad_clipping=100, activation_hidden="tanh", activation_cell="tanh", activation_input="sigmoid", activation_forget="sigmoid", activation_output="sigmoid"):
 		super(RecurrentLayers, self).__init__()
 		self.layer_type = layer_type
 		self.layers = layers
 		self.bidirectional = bidirectional
 		self.embedding_size = embedding_size
 		self.grad_clip=grad_clipping
-		self.act_f_hidden = self._get_act_func(activation_hidden)
-		self.act_f_cell = self._get_act_func(activation_cell)
+		self.act_f_hidden = self._get_act_func(activation_hidden, nonlinearities.tanh)
+		self.act_f_cell = self._get_act_func(activation_cell, nonlinearities.tanh)
+		self.act_f_input = self._get_act_func(activation_input, nonlinearities.sigmoid)
+		self.act_f_forget = self._get_act_func(activation_forget, nonlinearities.sigmoid)
+		self.act_f_output = self._get_act_func(activation_output, nonlinearities.sigmoid)
 		self.set_name()
 
 
-	def _get_act_func(self, string):
+	def _get_act_func(self, string, default):
 		if string == "tanh":
 			return nonlinearities.tanh
 		if string == "sigmoid":
@@ -41,7 +47,11 @@ class RecurrentLayers(object):
 			return nonlinearities.elu
 		if string == "selu":
 			return nonlinearities.selu
-		return nonlinearities.tanh
+		if string == "softplus":
+			return nonlinearities.softplus
+		if string == "rectify":
+			return nonlinearities.rectify
+		return default
 
 
 	def set_name(self):
@@ -51,7 +61,7 @@ class RecurrentLayers(object):
 			self.name += "b"+self.layer_type+"_"
 		elif self.layer_type != "LSTM":
 			self.name += self.layer_type+"_"
-		
+
 		self.name += "gc"+str(self.grad_clip)+"_"
 		if self.embedding_size > 0:
 			self.name += "e"+str(self.embedding_size)
@@ -108,8 +118,9 @@ class RecurrentLayers(object):
 				raise ValueError('Unknown layer type')
 
 			return layer(input_layer, n_hidden, true_input_size, mask_input=mask_layer, grad_clipping=self.grad_clip,
-				learn_init=True, only_return_final=only_return_final, backwards=backwards
-				, cell=Gate(W_cell=None, nonlinearity=self.act_f_cell), nonlinearity=self.act_f_hidden)
+				learn_init=True, only_return_final=only_return_final, backwards=backwards,
+				 ingate=Gate(nonlinearity=self.act_f_input), forgetgate=Gate(nonlinearity=self.act_f_forget), outgate=Gate(nonlinearity=self.act_f_output),
+				 cell=Gate(W_cell=None, nonlinearity=self.act_f_cell), nonlinearity=self.act_f_hidden)
 		else:
 			if self.layer_type == "LSTM":
 				layer = lasagne.layers.LSTMLayer

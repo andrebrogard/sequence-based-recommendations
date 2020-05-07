@@ -27,11 +27,11 @@ If you use this code in your research, please cite us:
 
 ## Fork differences
 
-Added --r_act_c, --r_act_h parameters, sets activation func for cell state and hidden state respectively.
+Added --r_act_o, --r_act_i, --r_act_f, --r_act_c, --r_act_h parameters, sets activation func for output, input, forget gate, cell state and hidden state respectively.
 
-They are only implemented on sparse LSTM atm.
+They are only implemented on sparse LSTM atm. (-m RNN --r_t LSTM)
 
-Possible values: tanh, sigmoid, elu, selu
+Possible values: tanh, sigmoid, elu, selu, softplus, rectify
 
 ````
 python train.py ... -m RNN --r_t LSTM ... --r_act_c selu --r_act_h sigmoid ...

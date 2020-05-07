@@ -1,0 +1,3 @@
+from brogard/seq_base
+
+ENTRYPOINT  ["python", "test.py", "-d", "/var/data/ml-1m/", "-m", "RNN", "--r_t", "LSTM", "--r_l", "20", "--r_act_o", "softplus", "--r_act_i", "softplus", "--r_act_f", "softplus", "--save", "--dir"]
